@@ -4,28 +4,28 @@ library(Rtsne)
 library(ggplot2)
 library(ggrepel)
 
-# 데이터 로드
+# road data
 data_file <- "/Users/song-yuseog/Desktop/R_script/K562_DCI/Chromatin_Contact.Normal-Philadelphia.merged.csv"
 
-# CSV 파일을 읽어 edgeR 데이터 객체로 변환.
+# CSV --> edgeR data object
 data <- read.csv(data_file, header = TRUE, row.names = 1)
 
 sample_groups <- c("Normal", "Normal", "Philadelphia", "Philadelphia")
 
-# edgeR 데이터 객체 생성.
+# Create edgeR data object
 dge <- DGEList(counts = data, group = sample_groups)
 
-# 데이터 정규화
+# Normalization 
 dge <- calcNormFactors(dge)
 
-# 분산 추정
+# estimate dispersion
 dge <- estimateCommonDisp(dge)
-# 유전자 발현 분석 수행.
+# Differential gene expression
 dge <- estimateTagwiseDisp(dge)
 
 # 1.COMMON DISPERSION APPROACH
-# 피셔 exact test로 유의하게 차이나는 gene 뽑기 --> 2개 이상의 샘플로 구성된 그룹 있어야함 
-# edgeR를 사용하여 유의한 유전자 식별
+# Fisher's exact test --> significantly different genes
+
 dge.com <- exactTest(dge)
 CDtop10<-topTags(dge.com, n = 10L)$table
 #CDtop20<-topTags(dge.com, n = 20L)$table
@@ -34,7 +34,7 @@ CDtop10<-topTags(dge.com, n = 10L)$table
 
 ann_col <- data.frame(type = as.factor(sample_groups)) # sample의 type  나타내기
 
-# Heatmap 그리기 
+# Heatmap
 heat <- pheatmap(dge, 
                  border_color = NA, 
                  cluster_rows = TRUE,
@@ -46,8 +46,8 @@ heat <- pheatmap(dge,
 
 
 png(filename = "/Users/song-yuseog/Desktop/R_script/K562_DCI/DCI_N_vs_P.heatmap.png", width = 600, height = 960) # 파일 이름과 크기 지정
-print(heat) # heatmap 그리기
-dev.off() # 출력 종료
+print(heat) 
+dev.off() 
 
 # Extract log2 fold changes and -log10(p-values) from the exact test results
 logFC <- CDtop10$logFC
@@ -58,10 +58,10 @@ gene_names <- rownames(CDtop10)
 
 # Create a data frame for the volcano plot
 volcano_data <- data.frame(Gene = gene_names, logFC = logFC, logCPM = logCPM, PValue = p_values)
-volcano_data$FDR <- p.adjust(volcano_data$PValue, method = "BH")  # FDR 조정
+volcano_data$FDR <- p.adjust(volcano_data$PValue, method = "BH")  # adjust FDR
 volcano_data$significant <- ifelse(volcano_data$FDR < 0.05 & abs(volcano_data$logFC) > 4, "yes", "no")
 
-# Volcano plot 그리기
+# Volcano plot
 volcano_plot <- ggplot(volcano_data, aes(x = logFC, y = -log10(FDR), color = significant)) +
   geom_point(size = 3) +
   scale_color_manual(values = c("yes" = "red", "no" = "black")) +
